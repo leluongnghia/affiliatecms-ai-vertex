@@ -225,7 +225,6 @@ add_action('admin_init', function () {
     $updater_file = WP_PLUGIN_DIR . '/affiliatecms-ai-vertex/src/GitHubUpdater.php';
     if (file_exists($updater_file)) {
         require_once $updater_file;
-        // Default placeholder for GitHub owner/repo, can be customized or configured
         $updater = new GitHubUpdater(
             __FILE__,
             'leluongnghia',
@@ -233,5 +232,29 @@ add_action('admin_init', function () {
             '1.0.0'
         );
         $updater->init();
+    }
+});
+
+// Add check update link on the plugins page
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), function ($links) {
+    $check_url = add_query_arg([
+        'acms_ai_vertex_check_update' => 1,
+        '_wpnonce' => wp_create_nonce('acms_ai_vertex_check_nonce')
+    ], admin_url('plugins.php'));
+    $links[] = '<a href="' . esc_url($check_url) . '">' . __('Check Update', 'affiliatecms-ai-vertex') . '</a>';
+    return $links;
+});
+
+// Process the check update request
+add_action('admin_init', function () {
+    if (isset($_GET['acms_ai_vertex_check_update']) && wp_verify_nonce($_GET['_wpnonce'] ?? '', 'acms_ai_vertex_check_nonce')) {
+        // Clear updates transients to force check
+        delete_transient('acms_ai_vertex_github_release');
+        delete_site_transient('update_plugins');
+        wp_clean_plugins_cache();
+        
+        // Redirect to updates page
+        wp_safe_redirect(admin_url('update-core.php'));
+        exit;
     }
 });
