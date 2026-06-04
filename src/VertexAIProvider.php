@@ -20,7 +20,7 @@ class VertexAIProvider implements ProviderInterface
     {
         return [
             ['id' => 'gemini-3.5-flash',   'name' => 'Gemini 3.5 Flash',   'input_cost' => 1.50,  'output_cost' => 9.00],
-            ['id' => 'gemini-3.5-pro',     'name' => 'Gemini 3.5 Pro',     'input_cost' => 1.25,  'output_cost' => 5.00],
+            ['id' => 'gemini-3.5-pro',     'name' => 'Gemini 3.5 Pro',     'input_cost' => 7.00,  'output_cost' => 21.00],
             ['id' => 'gemini-3.1-flash',   'name' => 'Gemini 3.1 Flash',   'input_cost' => 0.075, 'output_cost' => 0.30],
             ['id' => 'gemini-3.1-pro',     'name' => 'Gemini 3.1 Pro',     'input_cost' => 1.25,  'output_cost' => 5.00],
             ['id' => 'gemini-3.0-flash',   'name' => 'Gemini 3.0 Flash',   'input_cost' => 0.075, 'output_cost' => 0.30],
@@ -192,7 +192,7 @@ class VertexAIProvider implements ProviderInterface
     {
         $pricing = [
             'gemini-3.5-flash' => [1.50, 9.00],
-            'gemini-3.5-pro'   => [1.25, 5.00],
+            'gemini-3.5-pro'   => [7.00, 21.00],
             'gemini-3.1-flash' => [0.075, 0.30],
             'gemini-3.1-pro'   => [1.25, 5.00],
             'gemini-3.0-flash' => [0.075, 0.30],
