@@ -228,7 +228,7 @@ add_action('admin_init', function () {
         // Default placeholder for GitHub owner/repo, can be customized or configured
         $updater = new GitHubUpdater(
             __FILE__,
-            'azevent',
+            'leluongnghia',
             'affiliatecms-ai-vertex',
             '1.0.0'
         );
