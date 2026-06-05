@@ -3,7 +3,7 @@
  * Plugin Name: AffiliateCMS AI Vertex AI Integration
  * Plugin URI: https://affiliatecms.com/ai-vertex
  * Description: Extends AffiliateCMS AI plugin to add Google Cloud Vertex AI support without modifying core files.
- * Version: 0.9.0
+ * Version: 0.9.1
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: AffiliateCMS
@@ -321,7 +321,7 @@ add_action('admin_init', function () {
             __FILE__,
             'leluongnghia',
             'affiliatecms-ai-vertex',
-            '0.9.0'
+            '0.9.1'
         );
         $updater->init();
     }
