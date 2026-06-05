@@ -245,6 +245,9 @@ class VertexAIProvider implements ProviderInterface
         $tokensIn  = (int) ($body['usageMetadata']['promptTokenCount'] ?? 0);
         $tokensOut = (int) ($body['usageMetadata']['candidatesTokenCount'] ?? 0);
 
+        // Log first 300 chars of content for debugging JSON parse failures
+        $this->logDiagnosticError("chat() response OK | tokens={$tokensIn}/{$tokensOut} | content_preview: " . mb_substr($content, 0, 300));
+
         // Calculate cost based on Vertex AI pricing
         $cost = $this->calculateCost($model, $tokensIn, $tokensOut);
 
