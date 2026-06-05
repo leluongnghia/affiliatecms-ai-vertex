@@ -3,7 +3,7 @@
  * Plugin Name: AffiliateCMS AI Vertex AI Integration
  * Plugin URI: https://affiliatecms.com/ai-vertex
  * Description: Extends AffiliateCMS AI plugin to add Google Cloud Vertex AI support without modifying core files.
- * Version: 1.0.0
+ * Version: 0.9.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: AffiliateCMS
@@ -17,6 +17,11 @@ namespace AffiliateCMS\AI\Vertex;
 
 if (!defined('ABSPATH')) {
     exit;
+}
+
+// Clear OPcache to ensure code changes are loaded immediately
+if (function_exists('opcache_reset')) {
+    @opcache_reset();
 }
 
 /**
@@ -88,7 +93,22 @@ add_filter('rest_pre_dispatch', function ($result, $server, $request) {
             }
             if (isset($params['vertex_ai_sa_json'])) {
                 $sa_json = $params['vertex_ai_sa_json'];
-                update_option('acms_ai_vertex_ai_sa_json', sanitize_textarea_field($sa_json));
+                
+                // Validate if it is valid JSON before saving to avoid corruption from sanitize_textarea_field
+                $decoded = json_decode($sa_json, true);
+                if (is_array($decoded)) {
+                    update_option('acms_ai_vertex_ai_sa_json', $sa_json);
+                } else {
+                    $unslashed = wp_unslash($sa_json);
+                    $decoded_unslashed = json_decode($unslashed, true);
+                    if (is_array($decoded_unslashed)) {
+                        update_option('acms_ai_vertex_ai_sa_json', $unslashed);
+                        $sa_json = $unslashed;
+                    } else {
+                        // Fallback but do not sanitize to avoid breaking JSON structure
+                        update_option('acms_ai_vertex_ai_sa_json', $sa_json);
+                    }
+                }
                 
                 // Auto-detect project ID if not explicitly specified
                 if (empty($params['vertex_ai_project_id'])) {
@@ -102,6 +122,23 @@ add_filter('rest_pre_dispatch', function ($result, $server, $request) {
     }
     return $result;
 }, 10, 3);
+
+/**
+ * Intercept get_option for Vertex AI API key to return a dummy value
+ * if Service Account JSON is configured. This bypasses the core plugin's
+ * empty API key check during job execution.
+ */
+$vertex_api_key_fallback = function ($value) {
+    if (empty($value)) {
+        $saJson = get_option('acms_ai_vertex_ai_sa_json', '');
+        if (!empty($saJson)) {
+            return 'service_account_only';
+        }
+    }
+    return $value;
+};
+add_filter('option_acms_ai_api_key_vertex-ai', $vertex_api_key_fallback);
+add_filter('default_option_acms_ai_api_key_vertex-ai', $vertex_api_key_fallback);
 
 /**
  * Output buffering to inject custom settings fields and Javascript helpers into the Admin UI HTML
@@ -138,6 +175,61 @@ add_action('current_screen', function ($screen) {
                 this.settings.vertex_ai_project_id = data.vertex_ai_project_id || "";
                 this.settings.vertex_ai_region = data.vertex_ai_region || "us-central1";
                 this.settings.vertex_ai_sa_json = data.vertex_ai_sa_json || "";
+            };
+
+            // Intercept validateKey to handle saving and dummy API key for Vertex AI
+            var originalValidateKey = component.validateKey;
+            component.validateKey = async function(providerId) {
+                if (providerId === "vertex-ai") {
+                    this.validatingKey = providerId;
+                    this.keyStatuses[providerId] = null;
+                    
+                    var localApiFetch = function(endpoint, options) {
+                        options = options || {};
+                        var method = options.method || "GET";
+                        var body = options.body;
+                        var config = {
+                            method: method,
+                            headers: {
+                                "X-WP-Nonce": window.acmsAi.nonce,
+                                "Content-Type": "application/json",
+                            },
+                        };
+                        if (body) config.body = JSON.stringify(body);
+                        return fetch(window.acmsAi.restUrl + endpoint, config).then(function (r) {
+                            return r.json().then(function (data) {
+                                return { data: data };
+                            });
+                        });
+                    };
+
+                    this.saving = true;
+                    try {
+                        await localApiFetch("settings", { method: "POST", body: this.settings });
+                    } catch (e) {
+                        this.saving = false;
+                        this.keyStatuses[providerId] = "invalid";
+                        this.validatingKey = null;
+                        return;
+                    }
+                    this.saving = false;
+
+                    try {
+                        var res = await localApiFetch("validate-key", {
+                            method: "POST",
+                            body: {
+                                provider: providerId,
+                                api_key: this.settings.api_keys[providerId] || "service_account_only",
+                            },
+                        });
+                        this.keyStatuses[providerId] = res.data.valid ? "valid" : "invalid";
+                    } catch (e) {
+                        this.keyStatuses[providerId] = "invalid";
+                    }
+                    this.validatingKey = null;
+                } else {
+                    return originalValidateKey.call(this, providerId);
+                }
             };
 
             return component;
@@ -229,7 +321,7 @@ add_action('admin_init', function () {
             __FILE__,
             'leluongnghia',
             'affiliatecms-ai-vertex',
-            '1.0.0'
+            '0.9.0'
         );
         $updater->init();
     }
