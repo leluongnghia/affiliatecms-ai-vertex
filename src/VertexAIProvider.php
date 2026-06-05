@@ -79,9 +79,9 @@ class VertexAIProvider implements ProviderInterface
             'generationConfig' => [
                 'temperature'      => $options['temperature'] ?? 0.7,
                 'maxOutputTokens'  => $options['max_tokens'] ?? 4096,
-                // Force pure JSON output — prevents Gemini from adding preamble
-                // text before/after the JSON block, which causes parse failures.
-                'response_mime_type' => 'application/json',
+                // Force pure JSON output — prevents Gemini from wrapping JSON in
+                // conversational text. Key must be camelCase per Vertex AI REST API spec.
+                'responseMimeType' => 'application/json',
             ],
         ];
         if (!empty($systemInstruction)) {
