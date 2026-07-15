@@ -3,7 +3,7 @@
  * Plugin Name: AffiliateCMS AI Vertex AI Integration
  * Plugin URI: https://affiliatecms.com/ai-vertex
  * Description: Extends AffiliateCMS AI plugin to add Google Cloud Vertex AI support without modifying core files.
- * Version: 0.9.2
+ * Version: 0.9.3
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: AffiliateCMS
@@ -75,6 +75,7 @@ add_filter('rest_post_dispatch', function ($response, $server, $request) {
             $data['vertex_ai_project_id'] = get_option('acms_ai_vertex_ai_project_id', '');
             $data['vertex_ai_region']     = get_option('acms_ai_vertex_ai_region', 'us-central1');
             $data['vertex_ai_sa_json']    = get_option('acms_ai_vertex_ai_sa_json', '');
+            $data['vertex_ai_custom_models'] = get_option('acms_ai_vertex_ai_custom_models', []);
             $response->set_data($data);
         }
     }
@@ -90,6 +91,9 @@ add_filter('rest_pre_dispatch', function ($result, $server, $request) {
             }
             if (isset($params['vertex_ai_region'])) {
                 update_option('acms_ai_vertex_ai_region', sanitize_text_field($params['vertex_ai_region']));
+            }
+            if (isset($params['vertex_ai_custom_models'])) {
+                update_option('acms_ai_vertex_ai_custom_models', is_array($params['vertex_ai_custom_models']) ? array_map('sanitize_text_field', $params['vertex_ai_custom_models']) : []);
             }
             if (isset($params['vertex_ai_sa_json'])) {
                 $sa_json = $params['vertex_ai_sa_json'];
@@ -155,6 +159,7 @@ add_action('current_screen', function ($screen) {
         window.acmsAiPreload.settings.vertex_ai_project_id = ' . wp_json_encode(get_option('acms_ai_vertex_ai_project_id', '')) . ';
         window.acmsAiPreload.settings.vertex_ai_region = ' . wp_json_encode(get_option('acms_ai_vertex_ai_region', 'us-central1')) . ';
         window.acmsAiPreload.settings.vertex_ai_sa_json = ' . wp_json_encode(get_option('acms_ai_vertex_ai_sa_json', '')) . ';
+        window.acmsAiPreload.settings.vertex_ai_custom_models = ' . wp_json_encode(get_option('acms_ai_vertex_ai_custom_models', [])) . ';
     }
 
     // Intercept Alpine component definition
@@ -167,6 +172,22 @@ add_action('current_screen', function ($screen) {
             component.settings.vertex_ai_project_id = "";
             component.settings.vertex_ai_region = "us-central1";
             component.settings.vertex_ai_sa_json = "";
+            component.settings.vertex_ai_custom_models = [];
+            component.new_vertex_ai_model = "";
+
+            component.addVertexAiModel = function() {
+                var val = this.new_vertex_ai_model.trim();
+                if (val && !this.settings.vertex_ai_custom_models.includes(val)) {
+                    this.settings.vertex_ai_custom_models.push(val);
+                }
+                this.new_vertex_ai_model = "";
+            };
+
+            component.removeVertexAiModel = function(model) {
+                this.settings.vertex_ai_custom_models = this.settings.vertex_ai_custom_models.filter(function(m) {
+                    return m !== model;
+                });
+            };
 
             // Intercept _applySettings to copy custom keys
             var originalApply = component._applySettings;
@@ -175,6 +196,7 @@ add_action('current_screen', function ($screen) {
                 this.settings.vertex_ai_project_id = data.vertex_ai_project_id || "";
                 this.settings.vertex_ai_region = data.vertex_ai_region || "us-central1";
                 this.settings.vertex_ai_sa_json = data.vertex_ai_sa_json || "";
+                this.settings.vertex_ai_custom_models = Array.isArray(data.vertex_ai_custom_models) ? data.vertex_ai_custom_models : [];
             };
 
             // Intercept validateKey to handle saving and dummy API key for Vertex AI
@@ -290,6 +312,31 @@ add_action('current_screen', function ($screen) {
                                                 <input type="text" class="input" x-model="settings.vertex_ai_region"
                                                        placeholder="e.g. us-central1" style="font-size:12px">
                                             </div>
+
+                                            <div class="form-group" style="margin-top:12px">
+                                                <label class="form-label" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px">Custom Models</label>
+                                                <div style="display:flex; gap:6px; margin-bottom:12px">
+                                                    <input type="text" class="input" x-model="new_vertex_ai_model" 
+                                                           @keydown.enter.prevent="addVertexAiModel"
+                                                           placeholder="Enter model ID (e.g. gemini-1.5-pro)" style="flex:1">
+                                                    <button type="button" class="btn btn-primary" @click="addVertexAiModel">Add Model</button>
+                                                </div>
+                                                
+                                                <div style="display:flex; flex-wrap:wrap; gap:6px">
+                                                    <template x-for="model in settings.vertex_ai_custom_models" :key="model">
+                                                        <div style="display:inline-flex; align-items:center; background:var(--bg-lighter); border:1px solid var(--border); padding:4px 8px; border-radius:16px; font-size:11px">
+                                                            <span x-text="model"></span>
+                                                            <button type="button" @click="removeVertexAiModel(model)" 
+                                                                    style="background:none; border:none; padding:0 0 0 6px; margin:0; cursor:pointer; color:inherit; opacity:0.6; display:inline-flex; align-items:center; height:100%">
+                                                                <i class="bi bi-x-circle-fill"></i>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <div x-show="settings.vertex_ai_custom_models.length === 0" style="font-size:11px; opacity:0.6; padding:4px 0">
+                                                        No custom models added.
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </template>';
 
@@ -321,7 +368,7 @@ add_action('admin_init', function () {
             __FILE__,
             'leluongnghia',
             'affiliatecms-ai-vertex',
-            '0.9.2'
+            '0.9.3'
         );
         $updater->init();
     }

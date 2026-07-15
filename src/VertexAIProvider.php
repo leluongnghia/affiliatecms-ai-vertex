@@ -18,7 +18,7 @@ class VertexAIProvider implements ProviderInterface
 
     public function getModels(): array
     {
-        return [
+        $models = [
             ['id' => 'gemini-3.5-flash', 'name' => 'Gemini 3.5 Flash', 'input_cost' => 1.50,  'output_cost' => 9.00],
             ['id' => 'gemini-3.1-pro',   'name' => 'Gemini 3.1 Pro',   'input_cost' => 1.25,  'output_cost' => 5.00],
             ['id' => 'gemini-3.1-flash', 'name' => 'Gemini 3.1 Flash', 'input_cost' => 0.075, 'output_cost' => 0.30],
@@ -26,6 +26,44 @@ class VertexAIProvider implements ProviderInterface
             ['id' => 'gemini-2.5-pro',   'name' => 'Gemini 2.5 Pro',   'input_cost' => 1.25,  'output_cost' => 5.00],
             ['id' => 'gemini-2.5-flash', 'name' => 'Gemini 2.5 Flash', 'input_cost' => 0.075, 'output_cost' => 0.30],
         ];
+
+        $customModelsOption = get_option('acms_ai_vertex_ai_custom_models', []);
+        if (!is_array($customModelsOption)) {
+            $customModelsOption = preg_split('/[\r\n,]+/', (string) $customModelsOption);
+        }
+
+        foreach ($customModelsOption as $line) {
+            $customModel = trim((string) $line);
+            if (empty($customModel)) {
+                continue;
+            }
+
+            $exists = false;
+            foreach ($models as $m) {
+                if ($m['id'] === $customModel) {
+                    $exists = true;
+                    break;
+                }
+            }
+
+            if (!$exists) {
+                $inputCost = 0.075;
+                $outputCost = 0.30;
+                if (str_contains($customModel, 'pro')) {
+                    $inputCost = 1.25;
+                    $outputCost = 5.00;
+                }
+
+                $models[] = [
+                    'id'          => $customModel,
+                    'name'        => $customModel . ' (Custom)',
+                    'input_cost'  => $inputCost,
+                    'output_cost' => $outputCost,
+                ];
+            }
+        }
+
+        return $models;
     }
 
     public function chat(string $apiKey, string $model, array $messages, array $options = []): ProviderResponse
